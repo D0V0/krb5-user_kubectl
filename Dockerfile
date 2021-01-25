@@ -1,14 +1,32 @@
-FROM alpine:3.6
+FROM alpine:3
 
-LABEL MAINTAINER="DOVO"
+ARG VCS_REF
+ARG BUILD_DATE
 
-ENV KUBE_LATEST_VERSION="v1.18.3"
+# Metadata
+LABEL org.label-schema.vcs-ref=$VCS_REF \
+      org.label-schema.name="helm-kubectl" \
+      org.label-schema.url="https://hub.docker.com/r/dtzar/helm-kubectl/" \
+      org.label-schema.vcs-url="https://github.com/dtzar/helm-kubectl" \
+      org.label-schema.build-date=$BUILD_DATE
 
-RUN apk add --update ca-certificates \
-    && apk add --update -t deps curl \
-    && apk add --update gettext \
-    && apk add krb5-user \
-    && curl -L https://storage.googleapis.com/kubernetes-release/release/${KUBE_LATEST_VERSION}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl \
+# Note: Latest version of kubectl may be found at:
+# https://github.com/kubernetes/kubernetes/releases
+ENV KUBE_LATEST_VERSION="v1.20.2"
+# Note: Latest version of helm may be found at
+# https://github.com/kubernetes/helm/releases
+ENV HELM_VERSION="v3.5.0"
+
+RUN apk add --no-cache ca-certificates bash git openssh curl krb5\
+    && wget -q https://storage.googleapis.com/kubernetes-release/release/${KUBE_LATEST_VERSION}/bin/linux/amd64/kubectl -O /usr/local/bin/kubectl \
     && chmod +x /usr/local/bin/kubectl \
-    && apk del --purge deps \
-    && rm /var/cache/apk/*
+    && wget -q https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz -O - | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
+    && chmod +x /usr/local/bin/helm \
+    && chmod g+rwx /root \
+    && mkdir /config \
+    && chmod g+rwx /config \
+    && helm repo add "stable" "https://charts.helm.sh/stable" --force-update
+
+WORKDIR /config
+
+CMD bash
